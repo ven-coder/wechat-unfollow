@@ -1,0 +1,25 @@
+{
+  "name": "wechat-unfollow",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "sync:assistsx-tsconfig": "node scripts/sync-assistsx-tsconfig.mjs",
+    "dev": "node scripts/sync-assistsx-tsconfig.mjs && vite",
+    "dev:registry": "ASSISTSX_USE_NPM=1 node scripts/sync-assistsx-tsconfig.mjs && ASSISTSX_USE_NPM=1 vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "node scripts/sync-assistsx-tsconfig.mjs && vue-tsc --noEmit",
+    "postinstall": "node scripts/sync-assistsx-tsconfig.mjs"
+  },
+  "dependencies": {
+    "assistsx-js": "^0.3.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.5",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.1",
+    "vue-tsc": "^2.2.0"
+  }
+}

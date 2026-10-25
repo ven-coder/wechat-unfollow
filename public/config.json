@@ -1,0 +1,11 @@
+{
+  "name": "公众号批量取关",
+  "versionName": "0.1.0",
+  "versionCode": 1,
+  "description": "微信通讯录公众号列表批量取消关注",
+  "packageName": "cn.assists.demo.unfollow",
+  "index": "index.html",
+  "indexInOverlay": false,
+  "icon": "icon.png",
+  "sourceUrl": ""
+}

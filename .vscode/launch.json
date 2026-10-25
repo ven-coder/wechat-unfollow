@@ -1,0 +1,21 @@
+{
+    // 需安装扩展：mpotthoff.vscode-android-webview-debug
+    // F5 会执行 preLaunchTask「ensure-vite-5173」：释放 5173 后执行 npm run dev（0.0.0.0:5173），再附加调试
+    // 手机 WebView 打开 http://<本机局域网 IP>:5173；应用内需 WebView.setWebContentsDebuggingEnabled(true)
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "android-webview",
+            "request": "attach",
+            "name": "Android WebView: Vite 5173 (auto dev server + attach)",
+            "preLaunchTask": "ensure-vite-5173",
+            "webRoot": "${workspaceFolder}",
+            "urlFilter": "http://*:5173/*",
+            "connectTimeout": 30000,
+            "vueComponentPaths": [
+                "${workspaceFolder}/**/*.vue",
+                "!**/node_modules/**"
+            ]
+        }
+    ]
+}

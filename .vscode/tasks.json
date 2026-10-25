@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ensure-vite-5173",
+      "type": "shell",
+      "command": "p=$(lsof -ti:5173 2>/dev/null); [ -n \"$p\" ] && kill -9 $p; exec npm run dev -- --host 0.0.0.0 --port 5173",
+      "isBackground": true,
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "ready in \\d+ ms"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false
+      }
+    }
+  ]
+}

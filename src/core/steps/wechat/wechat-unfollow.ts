@@ -2,7 +2,7 @@ import { AssistsX, float, log, type Step, type StepImpl } from 'assistsx-js'
 import { HOST_FALLBACK_PACKAGES } from './wechat-selectors'
 import { wechatMain } from './wechat-main'
 import { wechatOfficialAccounts } from './wechat-official-accounts'
-import { saveProgress, saveRun, saveScan } from './wechat-store'
+import { loadUnfollowed, saveProgress, saveRun, saveScan, saveUnfollowed } from './wechat-store'
 import { randomBetween } from './wechat-utils'
 import type {
   RunCheckpoint,
@@ -130,6 +130,10 @@ class WechatUnfollow {
       success++
       failStreak = 0
       if (name && !doneNames.includes(name)) doneNames.push(name)
+      if (name) {
+        const unfollowed = await loadUnfollowed()
+        if (!unfollowed.includes(name)) await saveUnfollowed([...unfollowed, name])
+      }
       await log.appendTimestampedEntry(`[unfollow] 完成「${name}」`)
     } else if (result === 'skipped') {
       skipped++
@@ -230,6 +234,7 @@ class WechatUnfollow {
       hostPackage: data.hostPackage,
     }
     await saveScan(result)
+    await saveUnfollowed([])
     const msg = `扫描完成：共 ${names.length} 个公众号`
     await log.appendTimestampedEntry(msg)
     await saveProgress({

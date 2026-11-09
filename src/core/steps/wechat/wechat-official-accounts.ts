@@ -1,11 +1,11 @@
 import { log, type StepImpl } from 'assistsx-js'
-import { LIST_FOOTER_PATTERN, SELECTORS } from './wechat-selectors'
+import { LIST_FOOTER_PATTERN } from './wechat-selectors'
 import {
   clickNode,
   collectAccountNames,
   findAccountNode,
   findListView,
-  findVisibleText,
+  findOfficialEntry,
   isOnAccountList,
 } from './wechat-utils'
 import type { WechatStepData } from './wechat-types'
@@ -15,11 +15,13 @@ class WechatOfficialAccounts {
   /** 前置：通讯录页；成功：进入公众号列表并回到顶部 */
   openEntry: StepImpl = async (step) => {
     const data = step.data as WechatStepData
+    if (step.repeatCount === 0) await log.appendTimestampedEntry('[list] 查找公众号列表入口')
     const nodes = await step.async.getAllNodes()
     if (isOnAccountList(nodes)) {
+      await log.appendTimestampedEntry('[list] 已进入公众号列表')
       return step.next(this.scrollToTop, { data })
     }
-    const entry = findVisibleText(nodes, SELECTORS.officialEntryText)
+    const entry = findOfficialEntry(nodes)
     if (!entry) {
       if (step.repeatCount >= 8) {
         await log.appendTimestampedEntry('[list] 未找到公众号入口')
@@ -35,6 +37,7 @@ class WechatOfficialAccounts {
     if (!clicked) {
       return step.repeat({ delayMs: 900, repeatCountMax: 10 })
     }
+    await log.appendTimestampedEntry('[list] 已点击公众号入口')
     await step.delay(1200)
     return step.repeat({ delayMs: 700, repeatCountMax: 16 })
   }
@@ -42,6 +45,7 @@ class WechatOfficialAccounts {
   /** 前置：公众号列表；成功：滚到顶部后按 task 分发 */
   scrollToTop: StepImpl = async (step) => {
     const data = step.data as WechatStepData
+    await log.appendTimestampedEntry('[list] 正在回到列表顶部')
     for (let i = 0; i < 24; i++) {
       const nodes = await step.async.getAllNodes()
       const list = findListView(nodes)

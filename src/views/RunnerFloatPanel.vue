@@ -49,7 +49,6 @@ import {
   Step,
   float,
   log,
-  type LogUpdateEvent,
 } from 'assistsx-js'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -91,16 +90,8 @@ const statusClass = computed(() => ({
 }))
 
 let pollTimer: number | undefined
-
-function onLogUpdate(evt: LogUpdateEvent): void {
-  const data = evt.data
-  if (!data?.text) return
-  if (data.stream === LogStream.entireLogText) {
-    logText.value = data.text
-  } else {
-    logText.value += data.text + '\n'
-  }
-}
+let disposeLog: (() => Promise<void>) | undefined
+let unmounted = false
 
 watch(logText, async () => {
   await nextTick()
@@ -125,8 +116,27 @@ async function onClose(): Promise<void> {
 }
 
 onMounted(async () => {
-  log.addLogUpdateListener(onLogUpdate)
-  logText.value = await log.readAllText()
+  void log.subscribe(LogStream.entireLogText, ({ text }) => {
+    logText.value = text
+  }).then(async (subscription) => {
+    if (unmounted) await subscription.dispose()
+    else disposeLog = subscription.dispose
+  }).catch(async (error) => {
+    console.error('日志订阅失败', error)
+    try {
+      logText.value = (await log.readAllText()) + '\n日志实时订阅失败，请查看控制台。'
+    } catch {
+      logText.value = '日志读取和实时订阅失败，请查看控制台。'
+    }
+  })
+  void log.subscribe(LogStream.entireLogText, ({ text }) => {
+    logText.value = text
+  }).then(async (subscription) => {
+    if (unmounted) await subscription.dispose()
+    else disposeLog = subscription.dispose
+  }).catch((error) => {
+    console.error('日志订阅失败：', error)
+  })
   progress.value = await loadProgress()
   pollTimer = window.setInterval(() => {
     void loadProgress().then((value) => {
@@ -156,7 +166,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  log.removeLogUpdateListener(onLogUpdate)
+  unmounted = true
+  if (disposeLog) void disposeLog()
   if (pollTimer) window.clearInterval(pollTimer)
 })
 </script>
@@ -172,7 +183,7 @@ onUnmounted(() => {
   padding: 0.9rem 1rem 0.75rem;
   font-family: system-ui, -apple-system, sans-serif;
   color: #1f2328;
-  background: #f7f8fa;
+  background: rgba(247, 248, 250, 0.68);
 }
 .runner-head {
   display: flex;
@@ -195,16 +206,16 @@ onUnmounted(() => {
   flex: none;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  background: #e7f0fb;
+  background: rgba(231, 240, 251, 0.65);
   color: #0b6bcb;
   font-size: 0.7rem;
 }
 .runner-status--done {
-  background: #e6f6e9;
+  background: rgba(230, 246, 233, 0.65);
   color: #1a7f37;
 }
 .runner-status--stopped {
-  background: #fdecec;
+  background: rgba(253, 236, 236, 0.65);
   color: #cf222e;
 }
 .runner-stats {
@@ -219,7 +230,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 0.4rem 0;
   border-radius: 8px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.45);
   border: 1px solid #e5e7eb;
 }
 .stat-num {
@@ -243,8 +254,8 @@ onUnmounted(() => {
   padding: 0.6rem 0.7rem;
   overflow-y: auto;
   border-radius: 8px;
-  background: #11161c;
-  color: #d6dee6;
+  background: rgba(17, 22, 28, 0.75);
+  color: #fff;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.7rem;
   line-height: 1.55;
@@ -262,7 +273,7 @@ onUnmounted(() => {
   font-size: 0.85rem;
   border: 1px solid #d0d7de;
   border-radius: 8px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.65);
   color: #1f2328;
   cursor: pointer;
 }
@@ -272,7 +283,7 @@ onUnmounted(() => {
 }
 .btn-danger {
   border-color: #f0c4c4;
-  background: #fdecec;
+  background: rgba(253, 236, 236, 0.7);
   color: #cf222e;
 }
 </style>

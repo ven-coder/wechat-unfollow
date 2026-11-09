@@ -18,6 +18,7 @@ const KEYS = {
   progress: 'wu:progress:v1',
   config: 'wu:config:v1',
   selection: 'wu:selection:v1',
+  unfollowed: 'wu:unfollowed:v1',
 } as const
 
 async function putJson(key: string, value: unknown): Promise<void> {
@@ -74,6 +75,14 @@ export function saveSelection(names: string[]): Promise<void> {
 
 export function loadSelection(): Promise<string[] | null> {
   return getJson<string[]>(KEYS.selection)
+}
+
+export async function loadUnfollowed(): Promise<string[]> {
+  return (await getJson<string[]>(KEYS.unfollowed)) || []
+}
+
+export function saveUnfollowed(names: string[]): Promise<void> {
+  return putJson(KEYS.unfollowed, names)
 }
 
 /** 组装一次运行的初始 step.data */

@@ -8,3 +8,5 @@ dist-ssr
 .env.*
 !.env.example
 assistsx-js/
+
+/docs/

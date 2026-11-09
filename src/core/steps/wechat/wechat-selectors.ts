@@ -14,7 +14,8 @@ export const SELECTORS = {
   tabLabelViewId: 'com.tencent.mm:id/icon_tv',
   tabContactsText: '通讯录',
   /** 通讯录页公众号入口 */
-  officialEntryText: '公众号、服务号和企业号',
+  officialEntryTexts: ['公众号、服务号和企业号', '服务号'],
+  officialEntryViewIds: ['com.tencent.mm:id/n6', 'com.tencent.mm:id/snb', 'com.tencent.mm:id/sky'],
   /** 公众号列表滚动容器 */
   listViewId: 'com.tencent.mm:id/i3y',
   /** 公众号名称（列表行标题） */
@@ -32,7 +33,7 @@ export const SELECTORS = {
 } as const
 
 /** 列表底部统计，如「17个公众号和服务号」 */
-export const LIST_FOOTER_PATTERN = /^\d+个公众号和服务号$/
+export const LIST_FOOTER_PATTERN = /^\d+个(?:公众号和服务号|服务号)$/
 
 /** 兜底到底文案（当前版本未出现，保留） */
 export const LIST_BOTTOM_PATTERN = /已显示全部|没有更多/

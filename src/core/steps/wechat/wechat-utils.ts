@@ -14,6 +14,19 @@ export function findVisibleText(nodes: Node[], text: string): Node | undefined {
   return nodes.find((n) => textOf(n) === text && isVisible(n))
 }
 
+/** 仅在通讯录页面匹配入口，避免误点消息列表中同名会话。 */
+export function findOfficialEntry(nodes: Node[]): Node | undefined {
+  const contactsTitle = nodes.some((n) =>
+    n.viewId === 'android:id/text1' && textOf(n) === '通讯录' && isVisible(n),
+  )
+  if (!contactsTitle) return undefined
+  return nodes.find((n) =>
+    SELECTORS.officialEntryViewIds.some((id) => id === n.viewId) &&
+    SELECTORS.officialEntryTexts.some((text) => text === textOf(n)) &&
+    isVisible(n),
+  )
+}
+
 export function findListView(nodes: Node[]): Node | undefined {
   return (
     nodes.find((n) => n.viewId === SELECTORS.listViewId && n.isScrollable) ||
@@ -22,7 +35,7 @@ export function findListView(nodes: Node[]): Node | undefined {
 }
 
 export function isOnAccountList(nodes: Node[]): boolean {
-  return nodes.some((n) => n.viewId === SELECTORS.listViewId)
+  return nodes.some((n) => n.viewId === SELECTORS.listViewId && isVisible(n))
 }
 
 /** 当前屏可见的公众号名称（按列表顺序） */

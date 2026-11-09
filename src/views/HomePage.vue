@@ -14,7 +14,7 @@
           <p class="value">{{ scan ? `${scan.total} 个公众号` : '尚未扫描' }}</p>
           <p v-if="scan" class="hint">上次扫描：{{ scanTime }}</p>
         </div>
-        <button type="button" class="btn" :disabled="busy" @click="startScan">
+        <button type="button" class="btn" @click="startScan">
           {{ scan ? '重新扫描' : '扫描公众号' }}
         </button>
       </div>
@@ -42,10 +42,12 @@
           v-for="name in filteredNames"
           :key="name"
           class="item"
+          :class="{ 'item--done': unfollowed.includes(name) }"
           @click="toggle(name)"
         >
-          <span class="check" :class="{ 'check--on': selected.includes(name) }" />
+          <span v-if="!unfollowed.includes(name)" class="check" :class="{ 'check--on': selected.includes(name) }" />
           <span class="name">{{ name }}</span>
+          <span v-if="unfollowed.includes(name)" class="success-label">取关成功</span>
         </li>
         <li v-if="filteredNames.length === 0" class="empty">没有匹配的公众号</li>
       </ul>
@@ -66,6 +68,9 @@
       </div>
     </section>
 
+    <p class="warning">
+      <strong>取关提醒：</strong>取关后可能难以找回，请谨慎选择并确认。误取关造成的后果由您自行承担。
+    </p>
     <p class="tip">
       取关过程会停留在微信页面，结束后自动回到 AssistsX。
     </p>
@@ -80,6 +85,7 @@ import {
   loadProgress,
   loadScan,
   loadSelection,
+  loadUnfollowed,
   saveConfig,
   saveRun,
   saveSelection,
@@ -92,6 +98,7 @@ const RUNNER_ID = 'wechat-unfollow-runner'
 
 const scan = ref<ScanResult | null>(null)
 const selected = ref<string[]>([])
+const unfollowed = ref<string[]>([])
 const keyword = ref('')
 const dryRun = ref(false)
 const progress = ref<RunProgress | null>(null)
@@ -124,14 +131,16 @@ const progressText = computed(() => {
 async function refresh(): Promise<void> {
   scan.value = await loadScan()
   progress.value = await loadProgress()
+  unfollowed.value = await loadUnfollowed()
   const saved = await loadSelection()
   if (saved) {
     const names = scan.value?.names || []
-    selected.value = saved.filter((name) => names.includes(name))
+    selected.value = saved.filter((name) => names.includes(name) && !unfollowed.value.includes(name))
   }
 }
 
 function toggle(name: string): void {
+  if (unfollowed.value.includes(name)) return
   const index = selected.value.indexOf(name)
   if (index >= 0) selected.value.splice(index, 1)
   else selected.value.push(name)
@@ -139,7 +148,7 @@ function toggle(name: string): void {
 }
 
 function selectAll(): void {
-  selected.value = filteredNames.value.slice()
+  selected.value = filteredNames.value.filter((name) => !unfollowed.value.includes(name))
   void saveSelection(selected.value)
 }
 
@@ -163,8 +172,9 @@ async function openRunner(task: 'scan' | 'unfollow'): Promise<void> {
   await float.open(url, {
     uniqueId: RUNNER_ID,
     showTopOperationArea: true,
-    showBottomOperationArea: false,
-    keepScreenOn: true,
+    showBottomOperationArea: true,
+    showBackground: false,
+    keepScreenOn: false,
     initialWidth: 1000,
     initialHeight: 1500,
     center: true,
@@ -329,6 +339,9 @@ onUnmounted(() => {
   border-bottom: 1px solid #f0f2f4;
   cursor: pointer;
 }
+.item--done {
+  cursor: default;
+}
 .check {
   flex: none;
   width: 1rem;
@@ -354,8 +367,14 @@ onUnmounted(() => {
   transform: rotate(45deg);
 }
 .name {
+  flex: 1;
   font-size: 0.85rem;
   word-break: break-all;
+}
+.success-label {
+  flex: none;
+  color: #1a7f37;
+  font-size: 0.75rem;
 }
 .empty {
   padding: 1rem 0;
@@ -382,5 +401,15 @@ onUnmounted(() => {
   font-size: 0.72rem;
   line-height: 1.6;
   color: #8b949e;
+}
+.warning {
+  margin: 0.7rem 0 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #f0d59a;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #79520c;
+  font-size: 0.72rem;
+  line-height: 1.6;
 }
 </style>

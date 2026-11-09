@@ -180,10 +180,9 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   min-height: 0;
-  padding: 0.9rem 1rem 0.75rem;
+  padding: 0 10px;
   font-family: system-ui, -apple-system, sans-serif;
-  color: #1f2328;
-  background: rgba(247, 248, 250, 0.68);
+  color: #fff;
 }
 .runner-head {
   display: flex;
@@ -200,64 +199,59 @@ onUnmounted(() => {
   margin: 0.25rem 0 0;
   font-size: 0.75rem;
   line-height: 1.5;
-  color: #5b636b;
+  color: #e2e8f0;
 }
 .runner-status {
   flex: none;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  background: rgba(231, 240, 251, 0.65);
-  color: #0b6bcb;
+  color: #bfdbfe;
   font-size: 0.7rem;
 }
 .runner-status--done {
-  background: rgba(230, 246, 233, 0.65);
-  color: #1a7f37;
+  color: #bbf7d0;
 }
 .runner-status--stopped {
-  background: rgba(253, 236, 236, 0.65);
-  color: #cf222e;
+  color: #fecaca;
 }
 .runner-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.4rem;
-  margin-top: 0.7rem;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
 }
 .stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.4rem 0;
+  padding: 0.2rem 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.45);
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.55);
 }
 .stat-num {
-  font-size: 1.05rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 .stat-label {
-  font-size: 0.68rem;
-  color: #6a737d;
+  font-size: 0.6rem;
+  color: #e2e8f0;
 }
 .runner-current {
   margin: 0.55rem 0 0;
   font-size: 0.75rem;
-  color: #3b4248;
+  color: #e2e8f0;
   word-break: break-all;
 }
 .runner-log {
   flex: 1;
   min-height: 0;
   margin: 0.6rem 0 0;
-  padding: 0.6rem 0.7rem;
+  padding: 0;
   overflow-y: auto;
   border-radius: 8px;
-  background: rgba(17, 22, 28, 0.75);
   color: #fff;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.7rem;
+  font-size: 10px;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-all;
@@ -269,21 +263,20 @@ onUnmounted(() => {
 }
 .btn {
   flex: 1;
-  padding: 0.55rem 0.8rem;
-  font-size: 0.85rem;
-  border: 1px solid #d0d7de;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  border: 1px solid #fff;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.65);
-  color: #1f2328;
+  background: transparent;
+  color: #fff;
   cursor: pointer;
 }
 .btn:disabled {
-  opacity: 0.55;
   cursor: not-allowed;
 }
 .btn-danger {
-  border-color: #f0c4c4;
-  background: rgba(253, 236, 236, 0.7);
-  color: #cf222e;
+  border-color: #ff4d4f;
+  background: #ff4d4f;
+  color: #fff;
 }
 </style>

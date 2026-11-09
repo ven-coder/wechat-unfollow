@@ -20,11 +20,14 @@ export function findOfficialEntry(nodes: Node[]): Node | undefined {
     n.viewId === 'android:id/text1' && textOf(n) === '通讯录' && isVisible(n),
   )
   if (!contactsTitle) return undefined
-  return nodes.find((n) =>
-    SELECTORS.officialEntryViewIds.some((id) => id === n.viewId) &&
-    SELECTORS.officialEntryTexts.some((text) => text === textOf(n)) &&
-    isVisible(n),
-  )
+  for (const text of SELECTORS.officialEntryTexts) {
+    const entry = nodes.find((n) =>
+      SELECTORS.officialEntryViewIds.some((id) => id === n.viewId) &&
+      textOf(n) === text && isVisible(n),
+    )
+    if (entry) return entry
+  }
+  return undefined
 }
 
 export function findListView(nodes: Node[]): Node | undefined {

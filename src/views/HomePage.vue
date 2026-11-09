@@ -5,6 +5,7 @@
       <p class="sub">
         先扫描公众号列表，在下方勾选要取关的账号，再点「批量取关」。
       </p>
+      <RouterLink class="log-link" :to="{ name: 'logs' }">查看日志</RouterLink>
     </header>
 
     <section class="card">
@@ -78,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { float } from 'assistsx-js'
+import { AssistsXAsync, float, log } from 'assistsx-js'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ensureA11yEnabled } from '../composables/useA11yGuard'
 import {
@@ -165,18 +166,29 @@ async function openRunner(task: 'scan' | 'unfollow'): Promise<void> {
   } catch {
     // 浮窗不存在时忽略
   }
+  if (!(await log.clear())) throw new Error('Failed to clear plugin log')
   // 局域网插件的浮窗需要绝对地址；相对路径会被宿主当作本地插件资源
   const origin = window.location.origin
   const path = `/runner?task=${task}`
   const url = origin && origin.startsWith('http') ? `${origin}${path}` : path
+  let initialWidth = 1000
+  let initialHeight = 1500
+  try {
+    const screen = await AssistsXAsync.getScreenSize()
+    if (screen && screen.width > 0 && screen.height > 0) {
+      initialWidth = Math.round(screen.width * 0.82)
+      initialHeight = Math.round(screen.height * 0.48)
+    }
+  } catch {
+    // 读取屏幕尺寸失败时沿用默认尺寸
+  }
   await float.open(url, {
     uniqueId: RUNNER_ID,
     showTopOperationArea: true,
     showBottomOperationArea: true,
-    showBackground: false,
     keepScreenOn: false,
-    initialWidth: 1000,
-    initialHeight: 1500,
+    initialWidth,
+    initialHeight,
     center: true,
   })
 }
@@ -222,6 +234,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.log-link {
+  display: inline-block;
+  margin-top: 0.65rem;
+  color: #2563eb;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
 .page {
   box-sizing: border-box;
   min-height: 100%;

@@ -14,8 +14,8 @@ export const SELECTORS = {
   tabLabelViewId: 'com.tencent.mm:id/icon_tv',
   tabContactsText: '通讯录',
   /** 通讯录页公众号入口 */
-  officialEntryTexts: ['公众号、服务号和企业号', '服务号'],
-  officialEntryViewIds: ['com.tencent.mm:id/n6', 'com.tencent.mm:id/snb', 'com.tencent.mm:id/sky'],
+  officialEntryTexts: ['公众号、服务号和企业号', '公众号', '服务号'],
+  officialEntryViewIds: ['com.tencent.mm:id/n6', 'com.tencent.mm:id/snb', 'com.tencent.mm:id/sky', 'com.tencent.mm:id/sr3'],
   /** 公众号列表滚动容器 */
   listViewId: 'com.tencent.mm:id/i3y',
   /** 公众号名称（列表行标题） */

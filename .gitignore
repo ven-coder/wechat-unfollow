@@ -10,3 +10,6 @@ dist-ssr
 assistsx-js/
 
 /docs/
+
+# 本地插件上传脚本
+/scripts/upload_plugin.mjs

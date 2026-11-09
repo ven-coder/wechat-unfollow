@@ -28,7 +28,8 @@ class WechatAccountDetail {
     }
 
     const titleText = (title.text || '').trim()
-    if (titleText !== target) {
+    // 星标公众号的详情标题会在名称末尾附加 @@，列表名称不含该标记。
+    if (!target || (titleText !== target && titleText !== `${target}@@`)) {
       await log.appendTimestampedEntry(`[unfollow] 详情页不匹配：${titleText} != ${target}`)
       step.back()
       const finishMissing = data.finishMissing

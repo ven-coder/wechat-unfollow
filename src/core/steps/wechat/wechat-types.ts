@@ -42,9 +42,6 @@ export interface WechatConfig {
   maxTargetScrolls: number
   minDelayMs: number
   maxDelayMs: number
-  longPauseEvery: number
-  longPauseMinMs: number
-  longPauseMaxMs: number
   maxFailStreak: number
 }
 
@@ -54,9 +51,6 @@ export const DEFAULT_CONFIG: WechatConfig = {
   maxTargetScrolls: 12,
   minDelayMs: 2500,
   maxDelayMs: 5000,
-  longPauseEvery: 8,
-  longPauseMinMs: 30000,
-  longPauseMaxMs: 60000,
   maxFailStreak: 3,
 }
 
@@ -88,9 +82,6 @@ export interface WechatStepData {
   // 节奏与熔断
   minDelayMs: number
   maxDelayMs: number
-  longPauseEvery: number
-  longPauseMinMs: number
-  longPauseMaxMs: number
   failStreak: number
   maxFailStreak: number
   stopReason: string

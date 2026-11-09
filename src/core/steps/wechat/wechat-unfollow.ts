@@ -175,16 +175,6 @@ class WechatUnfollow {
       return step.next(this.finish, { data: nextData })
     }
 
-    if (
-      data.longPauseEvery > 0 &&
-      index % data.longPauseEvery === 0 &&
-      nextData.targets.length > index
-    ) {
-      const longDelay = randomBetween(data.longPauseMinMs, data.longPauseMaxMs)
-      await log.appendTimestampedEntry(`[unfollow] 长暂停 ${Math.round(longDelay / 1000)} 秒`)
-      await step.delay(longDelay)
-    }
-
     return step.next(wechatOfficialAccounts.findTarget, {
       data: nextData,
       delayMs: randomBetween(data.minDelayMs, data.maxDelayMs),

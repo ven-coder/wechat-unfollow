@@ -57,6 +57,7 @@ import {
   loadConfig,
   loadProgress,
   loadRun,
+  saveProgress,
 } from '../core/steps/wechat/wechat-store'
 import { wechatUnfollow } from '../core/steps/wechat/wechat-unfollow'
 import type { RunProgress } from '../core/steps/wechat/wechat-types'
@@ -98,10 +99,19 @@ watch(logText, async () => {
   if (logRef.value) logRef.value.scrollTop = logRef.value.scrollHeight
 })
 
-function onStop(): void {
+async function markStopped(message: string): Promise<void> {
+  const latest = await loadProgress()
+  if (latest?.status !== 'running' || latest.task !== task) return
+  const next: RunProgress = { ...latest, status: 'stopped', current: '', message, updatedAt: Date.now() }
+  await saveProgress(next)
+  progress.value = next
+}
+
+async function onStop(): Promise<void> {
   stopped.value = true
   try {
     Step.stop()
+    await markStopped('任务已停止，可以重新开始')
   } catch (error) {
     void log.appendTimestampedEntry('停止失败：' + String(error))
   }
@@ -109,6 +119,7 @@ function onStop(): void {
 
 async function onClose(): Promise<void> {
   try {
+    if (progress.value?.status === 'running') await onStop()
     await float.close()
   } catch {
     // 浮窗可能已关闭
@@ -161,6 +172,7 @@ onMounted(async () => {
     )
   } catch (error) {
     console.error(error)
+    await markStopped(stopped.value ? '任务已停止，可以重新开始' : '任务执行中断，可以重新开始')
     await log.appendTimestampedEntry('执行失败：' + String(error))
   }
 })

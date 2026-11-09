@@ -67,6 +67,7 @@
           批量取关（{{ selected.length }}）
         </button>
       </div>
+      <p v-if="busy" class="hint">任务正在运行，请在浮窗中停止或等待完成后再启动。</p>
     </section>
 
     <p class="warning">
@@ -88,6 +89,7 @@ import {
   loadSelection,
   loadUnfollowed,
   saveConfig,
+  saveProgress,
   saveRun,
   saveSelection,
 } from '../core/steps/wechat/wechat-store'
@@ -132,6 +134,19 @@ const progressText = computed(() => {
 async function refresh(): Promise<void> {
   scan.value = await loadScan()
   progress.value = await loadProgress()
+  if (progress.value?.status === 'running') {
+    try {
+      if (!(await float.containsByUniqueId(RUNNER_ID))) {
+        const latest = await loadProgress()
+        if (latest?.status === 'running' && latest.updatedAt === progress.value.updatedAt) {
+          progress.value = { ...latest, status: 'stopped', current: '', message: '上次任务已中断，可以重新开始', updatedAt: Date.now() }
+          await saveProgress(progress.value)
+        }
+      }
+    } catch {
+      // 无法确认浮窗状态时保留运行状态，避免重复启动。
+    }
+  }
   unfollowed.value = await loadUnfollowed()
   const saved = await loadSelection()
   if (saved) {

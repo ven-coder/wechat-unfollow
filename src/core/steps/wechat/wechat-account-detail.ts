@@ -1,149 +1,64 @@
 import { log, type StepImpl } from 'assistsx-js'
 import { SELECTORS } from './wechat-selectors'
-import { clickNode, isOnAccountList, isVisible } from './wechat-utils'
+import { clickNode, findAccountNode, isOnAccountList, isVisible } from './wechat-utils'
 import type { WechatStepData } from './wechat-types'
 
+/** 公众号列表的长按菜单。 */
 class WechatAccountDetail {
-  /** 前置：已点击目标账号；成功/失败都交回 step.data.finishUnfollowed */
   unfollow: StepImpl = async (step) => {
     const data = step.data as WechatStepData
     const target = data.targets[data.targetIndex] || ''
     const nodes = await step.async.getAllNodes()
+    const item = nodes.find((n) => (n.text || '').trim() === SELECTORS.unfollowText && isVisible(n))
 
-    const title = nodes.find(
-      (n) => n.viewId === SELECTORS.profileNameViewId && isVisible(n),
-    )
-    if (!title) {
-      if (step.repeatCount >= 8) {
-        await log.appendTimestampedEntry(`[unfollow] 未进入「${target}」详情页`)
-        const finishMissing = data.finishMissing
-        if (finishMissing) {
-          return step.next(finishMissing, {
-            data: { ...data, currentName: target, failedReason: 'detail-not-open' },
-          })
-        }
-        return undefined
-      }
-      return step.repeat({ delayMs: 800, repeatCountMax: 10 })
-    }
-
-    const titleText = (title.text || '').trim()
-    // 星标公众号的详情标题会在名称末尾附加 @@，列表名称不含该标记。
-    if (!target || (titleText !== target && titleText !== `${target}@@`)) {
-      await log.appendTimestampedEntry(`[unfollow] 详情页不匹配：${titleText} != ${target}`)
-      step.back()
-      const finishMissing = data.finishMissing
-      if (finishMissing) {
-        return step.next(finishMissing, {
-          data: { ...data, currentName: target, failedReason: 'wrong-account' },
-        })
-      }
-      return undefined
-    }
-
-    // 菜单已展开时直接进入确认阶段
-    if (nodes.some((n) => (n.text || '').trim() === SELECTORS.unfollowText)) {
-      return step.next(this.confirmDialog, { data, delayMs: 400 })
-    }
-
-    const more = nodes.find(
-      (n) => n.viewId === SELECTORS.moreInfoViewId || n.des === SELECTORS.moreInfoDes,
-    )
-    const clicked = await clickNode(more)
-    if (!clicked) {
-      if (step.repeatCount >= 5) {
-        const finishMissing = data.finishMissing
-        if (finishMissing) {
-          return step.next(finishMissing, {
-            data: { ...data, currentName: target, failedReason: 'more-not-clickable' },
-          })
-        }
-        return undefined
-      }
-      return step.repeat({ delayMs: 900, repeatCountMax: 8 })
-    }
-    return step.next(this.confirmDialog, { data, delayMs: 800 })
-  }
-
-  /** 前置：菜单或确认弹窗；成功：完成取关（或 dry-run 取消）并返回列表 */
-  confirmDialog: StepImpl = async (step) => {
-    const data = step.data as WechatStepData
-    const target = data.targets[data.targetIndex] || ''
-    const nodes = await step.async.getAllNodes()
-    const keep = nodes.find(
-      (n) => (n.text || '').trim() === SELECTORS.keepFollowingText && isVisible(n),
-    )
-    const unfollows = nodes.filter(
-      (n) => (n.text || '').trim() === SELECTORS.unfollowText && isVisible(n),
-    )
-
-    if (!keep) {
-      // 仍在底部菜单：点菜单里的「不再关注」，等确认弹窗
-      if (unfollows.length > 0) {
-        const sheetItem = unfollows[unfollows.length - 1]
-        const ok = await clickNode(sheetItem)
-        if (!ok) return step.repeat({ delayMs: 800, repeatCountMax: 8 })
-        return step.next(this.confirmDialog, { data, delayMs: 800 })
-      }
-      if (step.repeatCount >= 6) {
-        const finishMissing = data.finishMissing
-        if (finishMissing) {
-          return step.next(finishMissing, {
-            data: { ...data, currentName: target, failedReason: 'menu-not-open' },
-          })
-        }
-        return undefined
-      }
-      return step.repeat({ delayMs: 700, repeatCountMax: 10 })
+    if (!item) {
+      if (step.repeatCount < 6) return step.repeat({ delayMs: 700, repeatCountMax: 8 })
+      // 无法确认菜单状态时停止，避免后续操作落到错误页面。
+      return data.finishError
+        ? step.next(data.finishError, { data: { ...data, stopReason: 'unfollow-menu-not-found' } })
+        : undefined
     }
 
     if (data.dryRun) {
-      await clickNode(keep)
-      await log.appendTimestampedEntry(`[unfollow] dry-run：跳过「${target}」`)
-      await step.delay(600)
-      return step.next(this.backToList, {
-        data: { ...data, currentName: target, accountResult: 'skipped' },
+      step.back()
+      await log.appendTimestampedEntry(`[unfollow] dry-run：已打开「${target}」的取关菜单`)
+      return step.next(this.verifyList, {
+        data: { ...data, currentName: target, accountResult: 'skipped' }, delayMs: 700,
       })
     }
 
-    // 弹窗里两个按钮：仍然关注（左）/ 不再关注（右），取最右侧
-    const dialogBtn = unfollows
-      .slice()
-      .sort((a, b) => (b.bounds?.centerX ?? 0) - (a.bounds?.centerX ?? 0))[0]
-    if (!dialogBtn) {
-      const finishMissing = data.finishMissing
-      if (finishMissing) {
-        return step.next(finishMissing, {
-          data: { ...data, currentName: target, failedReason: 'confirm-not-found' },
-        })
-      }
-      return undefined
+    if (!await clickNode(item)) {
+      if (step.repeatCount < 5) return step.repeat({ delayMs: 700, repeatCountMax: 8 })
+      return data.finishError
+        ? step.next(data.finishError, { data: { ...data, stopReason: 'unfollow-menu-click-failed' } })
+        : undefined
     }
-    const ok = await clickNode(dialogBtn)
-    if (!ok) return step.repeat({ delayMs: 800, repeatCountMax: 6 })
-    await log.appendTimestampedEntry(`[unfollow] 已确认取关「${target}」`)
-    await step.delay(1200)
-    return step.next(this.backToList, {
-      data: { ...data, currentName: target, accountResult: 'success' },
+    return step.next(this.verifyList, {
+      data: { ...data, currentName: target, accountResult: 'success' }, delayMs: 1000,
     })
   }
 
-  /** 回到公众号列表，交回编排层 */
-  backToList: StepImpl = async (step) => {
+  /** 仅在返回列表且目标从当前列表消失后计为成功。 */
+  verifyList: StepImpl = async (step) => {
     const data = step.data as WechatStepData
-    if (!isOnAccountList(await step.async.getAllNodes())) {
-      step.back()
-      await step.delay(900)
-      if (!isOnAccountList(await step.async.getAllNodes())) {
-        if (step.repeatCount >= 5) {
-          const finish = data.finishUnfollowed
-          return finish ? step.next(finish, { data }) : undefined
-        }
-        return step.repeat({ delayMs: 800, repeatCountMax: 8 })
-      }
+    const nodes = await step.async.getAllNodes()
+    const listVisible = isOnAccountList(nodes)
+    const menuVisible = nodes.some((n) => (n.text || '').trim() === SELECTORS.unfollowText && isVisible(n))
+    const targetVisible = !!findAccountNode(nodes, data.currentName)
+    if (listVisible && !menuVisible && (data.accountResult === 'skipped' || !targetVisible)) {
+      const finish = data.finishUnfollowed
+      return finish ? step.next(finish, { data }) : undefined
     }
-    const finish = data.finishUnfollowed
-    return finish ? step.next(finish, { data }) : undefined
+    if (step.repeatCount < 6) return step.repeat({ delayMs: 800, repeatCountMax: 8 })
+    if (!listVisible || menuVisible) {
+      return data.finishError
+        ? step.next(data.finishError, { data: { ...data, stopReason: 'list-not-restored' } })
+        : undefined
+    }
+    const finish = data.finishMissing
+    return finish
+      ? step.next(finish, { data: { ...data, failedReason: 'account-still-visible' } })
+      : undefined
   }
 }
 

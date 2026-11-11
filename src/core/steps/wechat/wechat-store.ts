@@ -19,10 +19,20 @@ const KEYS = {
   config: 'wu:config:v1',
   selection: 'wu:selection:v1',
   unfollowed: 'wu:unfollowed:v1',
+  hideSelectToSpeakWarning: 'wu:hide-select-to-speak-warning:v1',
 } as const
 
 async function putJson(key: string, value: unknown): Promise<void> {
   await mmkv.putString(key, JSON.stringify(value), { mmkvId: MMKV_ID })
+}
+
+/** 是否跳过随选朗读任务前提醒。 */
+export async function loadHideSelectToSpeakWarning(): Promise<boolean> {
+  return (await getJson<boolean>(KEYS.hideSelectToSpeakWarning)) === true
+}
+
+export function saveHideSelectToSpeakWarning(value: boolean): Promise<void> {
+  return putJson(KEYS.hideSelectToSpeakWarning, value)
 }
 
 async function getJson<T>(key: string): Promise<T | null> {

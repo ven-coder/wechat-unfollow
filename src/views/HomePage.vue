@@ -8,6 +8,18 @@
       <RouterLink class="log-link" :to="{ name: 'logs' }">查看日志</RouterLink>
     </header>
 
+    <section class="card" aria-label="随选朗读状态">
+      <div class="card-row">
+        <div>
+          <p class="label">Google 随选朗读服务</p>
+          <p class="value">{{ selectToSpeakStatus === 'enabled' ? '已开启' : selectToSpeakStatus === 'disabled' ? '未检测到' : '无法检测' }}</p>
+          <p class="hint">用于读取微信页面信息；厂商其他朗读服务可能无法识别。</p>
+        </div>
+        <button type="button" class="link" @click="refreshSelectToSpeak">刷新</button>
+      </div>
+      <p v-if="hideSelectToSpeakWarning" class="hint">任务前提醒已关闭 <button type="button" class="link" @click="restoreWarning">重新开启提醒</button></p>
+    </section>
+
     <section class="card">
       <div class="card-row">
         <div>
@@ -15,13 +27,14 @@
           <p class="value">{{ scan ? `${scan.total} 个公众号` : '尚未扫描' }}</p>
           <p v-if="scan" class="hint">上次扫描：{{ scanTime }}</p>
         </div>
-        <button type="button" class="btn" @click="startScan">
+        <button type="button" class="btn" :disabled="busy || starting" @click="startTask('scan')">
           {{ scan ? '重新扫描' : '扫描公众号' }}
         </button>
       </div>
       <p v-if="progressText" class="progress" :class="{ 'progress--done': progress?.status === 'done' }">
         {{ progressText }}
       </p>
+      <p v-if="taskError" class="warning" role="alert">{{ taskError }}</p>
     </section>
 
     <section v-if="scan" class="card card--list">
@@ -61,8 +74,8 @@
         <button
           type="button"
           class="btn btn--primary"
-          :disabled="selected.length === 0 || busy"
-          @click="startUnfollow"
+          :disabled="selected.length === 0 || busy || starting"
+          @click="startTask('unfollow')"
         >
           批量取关（{{ selected.length }}）
         </button>
@@ -76,19 +89,36 @@
     <p class="tip">
       取关过程会停留在微信页面，结束后自动回到 AssistsX。
     </p>
+    <div v-if="pendingTask" class="dialog-mask" role="dialog" aria-modal="true" aria-labelledby="select-to-speak-title">
+      <div class="dialog-card">
+        <h2 id="select-to-speak-title">随选朗读提醒</h2>
+        <p v-if="selectToSpeakStatus === 'disabled'">为正常读取微信页面信息，需先开启随选朗读服务。未开启将影响正常执行。</p>
+        <p v-else-if="selectToSpeakStatus === 'enabled'">已检测到随选朗读服务开启，请确认是否继续执行。</p>
+        <p v-else>无法确认随选朗读服务是否开启。为正常读取微信页面信息，请先检查随选朗读服务；未开启将影响正常执行。</p>
+        <p v-if="settingsHint" class="hint">{{ settingsHint }}</p>
+        <label class="dry"><input v-model="dontRemind" type="checkbox" />不再提醒</label>
+        <div class="dialog-actions">
+          <button type="button" class="btn" :disabled="dialogBusy" @click="openSelectToSpeakSettings">去开启</button>
+          <button type="button" class="btn btn--primary" :disabled="dialogBusy" @click="continuePending">{{ selectToSpeakStatus === 'enabled' ? '确认继续' : '仍然执行' }}</button>
+          <button type="button" class="btn" :disabled="dialogBusy" @click="cancelPending">取消</button>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
 <script setup lang="ts">
-import { AssistsXAsync, float, log } from 'assistsx-js'
+import { a11y, AssistsXAsync, float, log } from 'assistsx-js'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ensureA11yEnabled } from '../composables/useA11yGuard'
 import {
   loadProgress,
+  loadHideSelectToSpeakWarning,
   loadScan,
   loadSelection,
   loadUnfollowed,
   saveConfig,
+  saveHideSelectToSpeakWarning,
   saveProgress,
   saveRun,
   saveSelection,
@@ -105,6 +135,16 @@ const unfollowed = ref<string[]>([])
 const keyword = ref('')
 const dryRun = ref(false)
 const progress = ref<RunProgress | null>(null)
+const selectToSpeakStatus = ref<'enabled' | 'disabled' | 'unknown'>('unknown')
+const hideSelectToSpeakWarning = ref(false)
+const starting = ref(false)
+const pendingTask = ref<'scan' | 'unfollow' | null>(null)
+const dontRemind = ref(false)
+const dialogBusy = ref(false)
+const settingsHint = ref('')
+const taskError = ref('')
+let statusRequest = 0
+let preferencesReady: Promise<void> = Promise.resolve()
 
 let timer: number | undefined
 
@@ -174,13 +214,7 @@ function clearAll(): void {
 }
 
 async function openRunner(task: 'scan' | 'unfollow'): Promise<void> {
-  try {
-    if (await float.containsByUniqueId(RUNNER_ID)) {
-      await float.close(RUNNER_ID)
-    }
-  } catch {
-    // 浮窗不存在时忽略
-  }
+  if (await float.containsByUniqueId(RUNNER_ID)) throw new Error('Runner already exists')
   if (!(await log.clear())) throw new Error('Failed to clear plugin log')
   // 局域网插件的浮窗需要绝对地址；相对路径会被宿主当作本地插件资源
   const origin = window.location.origin
@@ -208,14 +242,116 @@ async function openRunner(task: 'scan' | 'unfollow'): Promise<void> {
   })
 }
 
-async function startScan(): Promise<void> {
-  if (!(await ensureA11yEnabled())) return
-  await openRunner('scan')
+async function refreshSelectToSpeak(): Promise<'enabled' | 'disabled' | 'unknown'> {
+  const request = ++statusRequest
+  let result: 'enabled' | 'disabled' | 'unknown' = 'unknown'
+  try {
+    const status = await a11y.getSelectToSpeakStatus(5)
+    if (typeof status?.googleServiceEnabled === 'boolean') {
+      result = status.googleServiceEnabled ? 'enabled' : 'disabled'
+    }
+  } catch {
+    // 旧宿主、桥接不可用或检测失败时保持未知状态。
+  }
+  if (request === statusRequest) selectToSpeakStatus.value = result
+  return result
 }
 
-async function startUnfollow(): Promise<void> {
+async function restoreWarning(): Promise<void> {
+  try {
+    await saveHideSelectToSpeakWarning(false)
+    hideSelectToSpeakWarning.value = false
+  } catch (error) {
+    console.error('Failed to restore Select to Speak warning', error)
+  }
+}
+
+async function openSelectToSpeakSettings(): Promise<void> {
+  dialogBusy.value = true
+  settingsHint.value = ''
+  try {
+    let opened = false
+    try {
+      opened = (await a11y.openSystemSettings({
+        action: 'android.settings.ACCESSIBILITY_DETAILS_SETTINGS',
+        accessibilityServiceComponent: 'com.google.android.marvin.talkback/com.google.android.accessibility.selecttospeak.SelectToSpeakService',
+      }, 5)).success
+    } catch {
+      // 旧宿主可能不支持通用设置页接口。
+    }
+    if (!opened) {
+      try {
+        opened = (await a11y.openSystemSettings({ action: 'android.settings.ACCESSIBILITY_SETTINGS' }, 5)).success
+      } catch {
+        try { opened = (await a11y.openAccessibilitySettings(5)).success } catch { /* 继续显示手动操作提示 */ }
+      }
+      if (opened) settingsHint.value = '已打开无障碍设置，请找到并开启随选朗读，返回后确认继续。'
+    }
+    if (!opened) settingsHint.value = '无法打开设置，请手动进入系统设置 → 无障碍 → 随选朗读。'
+  } finally {
+    dialogBusy.value = false
+  }
+}
+
+function cancelPending(): void {
+  pendingTask.value = null
+  starting.value = false
+}
+
+async function continuePending(): Promise<void> {
+  const task = pendingTask.value
+  if (!task || dialogBusy.value) return
+  dialogBusy.value = true
+  try {
+    if (dontRemind.value) {
+      await saveHideSelectToSpeakWarning(true)
+      hideSelectToSpeakWarning.value = true
+    }
+    pendingTask.value = null
+    await executeTask(task)
+  } catch (error) {
+    if (pendingTask.value) {
+      settingsHint.value = '无法保存提醒设置，请重试或取消勾选后继续。'
+    } else {
+      taskError.value = '无法启动任务，请确认没有正在运行的任务后重试。'
+      console.error('Failed to start task', error)
+    }
+  } finally {
+    dialogBusy.value = false
+    if (!pendingTask.value) starting.value = false
+  }
+}
+
+async function startTask(task: 'scan' | 'unfollow'): Promise<void> {
+  if (starting.value || busy.value || (task === 'unfollow' && selected.value.length === 0)) return
+  starting.value = true
+  taskError.value = ''
+  try {
+    if (!(await ensureA11yEnabled())) return
+    await preferencesReady
+    const status = await refreshSelectToSpeak()
+    if (status !== 'enabled' && !hideSelectToSpeakWarning.value) {
+      dontRemind.value = false
+      settingsHint.value = ''
+      pendingTask.value = task
+      return
+    }
+    await executeTask(task)
+  } catch (error) {
+    taskError.value = '无法启动任务，请确认没有正在运行的任务后重试。'
+    console.error('Failed to start task', error)
+  } finally {
+    if (!pendingTask.value) starting.value = false
+  }
+}
+
+async function executeTask(task: 'scan' | 'unfollow'): Promise<void> {
+  if (await float.containsByUniqueId(RUNNER_ID)) throw new Error('Runner already exists')
+  if (task === 'scan') {
+    await openRunner('scan')
+    return
+  }
   if (selected.value.length === 0) return
-  if (!(await ensureA11yEnabled())) return
   await saveConfig({ dryRun: dryRun.value })
 
   const order = scan.value?.names || []
@@ -239,16 +375,33 @@ async function startUnfollow(): Promise<void> {
 }
 
 onMounted(async () => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('focus', onFocus)
+  void refreshSelectToSpeak()
+  preferencesReady = loadHideSelectToSpeakWarning().then((value) => { hideSelectToSpeakWarning.value = value })
   await refresh()
   timer = window.setInterval(refresh, 1500)
 })
 
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('focus', onFocus)
   if (timer) window.clearInterval(timer)
 })
+
+function onVisibilityChange(): void {
+  if (document.visibilityState === 'visible') void refreshSelectToSpeak()
+}
+function onFocus(): void {
+  void refreshSelectToSpeak()
+}
 </script>
 
 <style scoped>
+.dialog-mask { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(0, 0, 0, 0.45); }
+.dialog-card { width: min(100%, 26rem); box-sizing: border-box; padding: 1rem; border-radius: 12px; background: #fff; font-size: 0.875rem; line-height: 1.6; }
+.dialog-card h2 { margin: 0; font-size: 1.05rem; }
+.dialog-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
 .log-link {
   display: inline-block;
   margin-top: 0.65rem;

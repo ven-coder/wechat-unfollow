@@ -126,11 +126,17 @@ class WechatOfficialAccounts {
 
     const hit = findAccountNode(nodes, target)
     if (hit) {
-      const clicked = await clickNode(hit)
-      if (!clicked) {
+      const row = await hit.async.findFirstParentClickable()
+      const pressed = row?.isLongClickable ? await row.async.longClick() : false
+      if (!pressed) {
+        if (step.repeatCount >= 5) {
+          return data.finishMissing
+            ? step.next(data.finishMissing, { data: { ...data, failedReason: 'long-press-failed' } })
+            : undefined
+        }
         return step.repeat({ delayMs: 900, repeatCountMax: 8 })
       }
-      await log.appendTimestampedEntry(`[unfollow] 打开「${target}」`)
+      await log.appendTimestampedEntry(`[unfollow] 已长按「${target}」`)
       return step.next(wechatAccountDetail.unfollow, { data, delayMs: 700 })
     }
 

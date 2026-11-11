@@ -175,7 +175,7 @@ class WechatUnfollow {
       return step.next(this.finish, { data: nextData })
     }
 
-    return step.next(wechatOfficialAccounts.findTarget, {
+    return step.next(wechatOfficialAccounts.scrollToTop, {
       data: nextData,
       delayMs: randomBetween(data.minDelayMs, data.maxDelayMs),
     })

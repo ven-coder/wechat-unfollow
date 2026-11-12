@@ -45,10 +45,13 @@ export function findListView(nodes: Node[]): Node | undefined {
   // 公众号列表顶部的更多信息按钮用于区分其他页面的列表。
   const hasHeader = nodes.some((n) => textOf(n) === SELECTORS.moreInfoDes && screenPosition(n, 0.75, 0, 1, 0.2))
   if (!hasHeader || !screen) return undefined
-  const lists = nodes.filter((n) => n.className === 'android.widget.ListView' && n.isScrollable &&
+  const lists = nodes.filter((n) => n.className === 'android.widget.ListView' &&
     isVisible(n) && n.bounds.width >= screen.width * 0.8)
-  if (lists.length === 1) return lists[0]
-  return nodes.find((n) => n.viewId === SELECTORS.listViewId && n.isScrollable && isVisible(n))
+  // 列表内容不足一屏时，微信不会将它标记为可滚动。
+  const identified = lists.find((n) => n.viewId === SELECTORS.listViewId)
+  if (identified) return identified
+  const scrollable = lists.filter((n) => n.isScrollable)
+  return scrollable.length === 1 ? scrollable[0] : undefined
 }
 
 export function isOnAccountList(nodes: Node[]): boolean {

@@ -66,7 +66,10 @@
         <li v-if="filteredNames.length === 0" class="empty">没有匹配的公众号</li>
       </ul>
 
-      <div class="footer">
+    </section>
+
+    <div class="bottom-panel">
+      <div v-if="scan" class="footer">
         <label class="dry">
           <input v-model="dryRun" type="checkbox" />
           试运行（不真正取关）
@@ -80,15 +83,14 @@
           批量取关（{{ selected.length }}）
         </button>
       </div>
-      <p v-if="busy" class="hint">任务正在运行，请在浮窗中停止或等待完成后再启动。</p>
-    </section>
-
-    <p class="warning">
-      <strong>取关提醒：</strong>取关后可能难以找回，请谨慎选择并确认。误取关造成的后果由您自行承担。
-    </p>
-    <p class="tip">
-      取关过程会停留在微信页面，结束后自动回到 AssistsX。
-    </p>
+      <p v-if="scan && busy" class="hint">任务正在运行，请在浮窗中停止或等待完成后再启动。</p>
+      <p class="warning">
+        <strong>取关提醒：</strong>取关后可能难以找回，请谨慎选择并确认。误取关造成的后果由您自行承担。
+      </p>
+      <p class="tip">
+        取关过程会停留在微信页面，结束后自动回到 AssistsX。
+      </p>
+    </div>
     <div v-if="pendingTask" class="dialog-mask" role="dialog" aria-modal="true" aria-labelledby="select-to-speak-title">
       <div class="dialog-card">
         <h2 id="select-to-speak-title">随选朗读提醒</h2>
@@ -411,8 +413,11 @@ function onFocus(): void {
 }
 .page {
   box-sizing: border-box;
-  min-height: 100%;
-  padding: 1.1rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 1.1rem 1rem 0;
   font-family: system-ui, -apple-system, sans-serif;
   color: #1f2328;
   background: #f7f8fa;
@@ -514,8 +519,6 @@ function onFocus(): void {
   margin: 0.5rem 0 0;
   padding: 0;
   list-style: none;
-  max-height: 46vh;
-  overflow-y: auto;
   border-top: 1px solid #eef0f2;
 }
 .item {
@@ -569,12 +572,20 @@ function onFocus(): void {
   font-size: 0.78rem;
   color: #8b949e;
 }
+.bottom-panel {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  margin: auto -1rem 0;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #e5e7eb;
+  background: #f7f8fa;
+}
 .footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
-  margin-top: 0.75rem;
 }
 .dry {
   display: flex;

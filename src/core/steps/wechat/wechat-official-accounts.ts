@@ -1,5 +1,5 @@
 import { log, type StepImpl } from 'assistsx-js'
-import { LIST_FOOTER_PATTERN } from './wechat-selectors'
+import { LIST_FOOTER_PATTERN, SELECTORS } from './wechat-selectors'
 import {
   clickNode,
   collectAccountNames,
@@ -50,11 +50,11 @@ class WechatOfficialAccounts {
       const nodes = await step.async.getAllNodes()
       const list = findListView(nodes)
       if (!list) break
-      const first = collectAccountNames(nodes)[0] || ''
+      const first = (await collectAccountNames(nodes))[0] || ''
       const ok = await list.async.scrollBackward()
       if (!ok) break
       await step.delay(400)
-      const afterFirst = collectAccountNames(await step.async.getAllNodes())[0] || ''
+      const afterFirst = (await collectAccountNames(await step.async.getAllNodes()))[0] || ''
       if (i > 0 && afterFirst && afterFirst === first) break
     }
     await log.appendTimestampedEntry('[list] 已回到列表顶部')
@@ -70,7 +70,7 @@ class WechatOfficialAccounts {
     const footer = nodes.find((n) => LIST_FOOTER_PATTERN.test((n.text || '').trim()))
 
     let added = 0
-    for (const name of collectAccountNames(nodes)) {
+    for (const name of await collectAccountNames(nodes)) {
       if (!names.includes(name)) {
         names.push(name)
         added++
@@ -124,10 +124,30 @@ class WechatOfficialAccounts {
       return undefined
     }
 
-    const hit = findAccountNode(nodes, target)
+    const hit = await findAccountNode(nodes, target)
     if (hit) {
       const row = await hit.async.findFirstParentClickable()
-      const pressed = row?.isLongClickable ? await row.async.longClick() : false
+      let pressed = row?.isLongClickable ? await row.async.longClick() : false
+      if (!pressed) {
+        await log.appendTimestampedEntry(`[unfollow] 节点长按失败「${target}」：父节点存在=${!!row}，支持长按=${!!row?.isLongClickable}`)
+        // 节点操作失败后重新获取页面，避免在菜单已经弹出时对旧坐标执行手势。
+        const refreshed = await step.async.getAllNodes()
+        const menuVisible = refreshed.some((n) => (n.text || n.des || '').trim() === SELECTORS.unfollowText && n.bounds?.isInScreen())
+        if (menuVisible) {
+          pressed = true
+        } else {
+          const list = findListView(refreshed)
+          const freshHit = await findAccountNode(refreshed, target)
+          const b = freshHit?.bounds
+          const area = list?.bounds
+          if (b && area && b.centerX > area.left && b.centerX < area.right &&
+            b.centerY > area.top && b.centerY < area.bottom) {
+            const point = { x: b.centerX, y: b.centerY }
+            pressed = await step.async.performLinearGesture(point, point, { duration: 900 })
+            await log.appendTimestampedEntry(`[unfollow] 手势长按「${target}」：${pressed}`)
+          }
+        }
+      }
       if (!pressed) {
         if (step.repeatCount >= 5) {
           return data.finishMissing

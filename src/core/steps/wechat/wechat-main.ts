@@ -1,6 +1,6 @@
 import { log, type StepImpl } from 'assistsx-js'
-import { SELECTORS, WECHAT_APP_NAME, WECHAT_PACKAGE } from './wechat-selectors'
-import { clickNode, findOfficialEntry, isOnAccountList } from './wechat-utils'
+import { WECHAT_APP_NAME, WECHAT_PACKAGE } from './wechat-selectors'
+import { clickNode, findContactsTab, findOfficialEntry, isOnAccountList } from './wechat-utils'
 import type { WechatStepData } from './wechat-types'
 import { wechatOfficialAccounts } from './wechat-official-accounts'
 
@@ -35,7 +35,7 @@ class WechatMain {
     const data = step.data as WechatStepData
     if (step.repeatCount === 0) await log.appendTimestampedEntry('[wechat] 返回微信主界面')
     const nodes = await step.async.getAllNodes()
-    const tab = nodes.find((n) => n.viewId === SELECTORS.tabLabelViewId && n.text === SELECTORS.tabContactsText && n.bounds?.isInScreen())
+    const tab = findContactsTab(nodes)
     if (!tab || isOnAccountList(nodes)) {
       if (step.repeatCount >= 18) {
         await log.appendTimestampedEntry('[wechat] 无法返回微信主界面')
